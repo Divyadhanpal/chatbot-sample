@@ -5,6 +5,7 @@ const chatSlice = createSlice({
   initialState: [],
   reducers: {
     chatAdded(state, action) {
+      console.log(state,action.payload.id,"inside chat")
       state.push({
         id: action.payload.id,
         cuurent : true,

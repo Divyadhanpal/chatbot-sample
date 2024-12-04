@@ -4,68 +4,110 @@ import PreviousChats from '../components/PreviousChats';
 import Chat from "@/components/Chat";
 import Sidebar from "@/components/Sidebar";
 import MobileSidebar from "@/components/MobileSidebar";
-
-
-const inter = Inter({ subsets: ['latin'] })
+import axios from "axios";
+import {chatAdded} from "../lib/chatSlice";
+import { useAppSelector, useAppDispatch, useAppStore } from '../lib/hooks';
 
 export default function Home() {
 
-  const [chatId,setChatId] = useState(null);
+  const [isComponentVisible, setIsComponentVisible] = useState(false);
+  const [isChatWindowVisible, setIsChatWindowVisible] = useState(false);
+  const [chatId, setchatId] = useState(null);
+  const [debounceTimeout, setDebounceTimeout] = useState(null);
+  const [output, setOutput] = useState('');
+  const [prevChats, setPrevChats] = useState([]);
+  const [navChatId,setNavChatId] = useState(null);
 
-  const callApi = async (url, data) => {
+   // Initialize the store with the product information
+   const store = useAppStore()
+   const initialized = useRef(false)
+   if (!initialized.current) {
+    // store.dispatch(initializeProduct(product))
+     initialized.current = true
+   }
+   // const name = useAppSelector(state => state.product.name)
+   const dispatch = useAppDispatch()
+
+
+  useEffect(() => {
+    if (prevChats.length == 0) {
+      const apiUrl = 'http://localhost:8000/api/v1/chats';
+      callApi(apiUrl);
+    }
+  }, []);
+
+  const callApi = async (url) => {
     try {
       const response = await fetch(url, {
-        method: 'POST',
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(""),
+        }
       });
       const result = await response.json();
-      console.log(result,"result from callapi")
-      // setOutput(JSON.stringify(result, null, 2));
-
+      console.log(result.map(item => item.id), "result from callapi get")
       // Assuming the ID is in result.id
-      if (result.id) {
-        setChatId(result.id); // Save the ID
+      if (result) {
+        setPrevChats(result.map(item => item.id)); // Save the ID
       }
     } catch (error) {
-      // setOutput('Error fetching data: ' + error.message);
+      setOutput('Error fetching data: ' + error.message);
     }
   };
 
-  useEffect(() => {
 
-      // Set a new timeout for the API call
-      const timeout = setTimeout(() => {
-        const apiUrl = 'http://localhost:8000/api/v1/chats'; // Replace with your actual API endpoint
-        const postData = { query: "" }; // Data to be sent in the POST request
-        callApi(apiUrl, postData);
-      }, 500); // 500ms debounce time
-  });
+  const getChatIDFromApi = () => {
+    alert("inside api")
+    const url = `http://localhost:8000/api/v1/chats`;
 
-  const [isComponentVisible, setIsComponentVisible] = useState(false);
+    axios.post(url).then((response) => {
+      // const result =  response.json();
+      console.log(response.data.id, "result from callapi index")
+      // setOutput(JSON.stringify(result, null, 2));
+
+      // Assuming the ID is in result.id
+      if (response.data.id) {
+        dispatch(chatAdded(response.data.id))
+        setchatId(response.data.id); // Save the ID
+      }
+    }).catch((error) => {
+      setOutput('Error fetching data: ' + error.message);
+      console.log(error, "from index error ");
+    })
+  }
 
 
   const toggleComponentVisibility = () => {
     setIsComponentVisible(!isComponentVisible);
   };
 
+  const toggleChatWindow = () => {
+      setIsChatWindowVisible(true);
+      getChatIDFromApi();  
+  };
+
+  const getIdFromNav =(id) => {
+    setchatId(id)
+    setIsChatWindowVisible(true);
+  }
+
 
 
   return (
 
     <div className="overflow-hidden w-full h-screen relative flex">
-
       {isComponentVisible ? (
         <MobileSidebar toggleComponentVisibility={toggleComponentVisibility} />
       ) : null}
       <div className="dark hidden flex-shrink-0 bg-gray-900 md:flex md:w-[260px] md:flex-col">
         <div className="flex h-full min-h-0 flex-col ">
-          <Sidebar />
+          <Sidebar isChatWindowVisible={isChatWindowVisible} onToggle={toggleChatWindow} prevChats={prevChats} getIdFromNav={getIdFromNav}/>
         </div>
       </div>
-      <Chat toggleComponentVisibility={toggleComponentVisibility} />
+
+      {isChatWindowVisible ? <Chat chatId={chatId} toggleComponentVisibility={toggleComponentVisibility} /> : <div style={{ color: '#fff' }}>
+        You can start your chat by clicking NEW CHAT Button
+      </div>}
 
     </div>
   )
